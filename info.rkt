@@ -6,7 +6,9 @@
 
 (define deps
   '("base"
-    "struct-update-lib"))
+    "struct-update-lib"
+    "lens"
+    "point-free"))
 
 (define build-deps
   '("rackunit-spec"))
