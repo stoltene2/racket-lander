@@ -155,32 +155,37 @@
   (define lander+scene (draw-lander l EMPTY-SCENE))
 
   (define (velocity+scene l scene)
-    (define v (velocity-y (lander-v l)))
+    (define v_y (velocity-y (lander-v l)))
+    (define v_x (velocity-x (lander-v l)))
 
-    (define vel-string
-      (format "vel: ~a"
-              (real->decimal-string v 2)))
+    (define y-vel-string
+      (format "Y vel: ~a"
+              (real->decimal-string v_y 2)))
+
+    (define x-vel-string
+      (format "X vel: ~a"
+              (real->decimal-string v_x 2)))
 
     (define angle-string
       (format "pitch: ~a" (real->decimal-string (lander-pitch l))))
-    (define color (if (> v MAX-LANDING-V)
+
+    (define color (if (or (> v_y MAX-LANDING-V)
+                          (> v_x MAX-LANDING-V))
                       "orange"
                       "green"))
 
     (overlay/align "left" "top"
-                   (above (text vel-string 12 color)
+                   (above (text y-vel-string 12 color)
+                          (text x-vel-string 12 color)
                           (text angle-string 12 "blue")) scene))
 
-  (if (lens-view world-lander-thrust?-lens w)
-      (overlay/align "right" "top"
-                     (text "THRUST" 30 "red") (velocity+scene l lander+scene))
-      (overlay/align "right" "top"
-                     (text "not thrusting" 20 "black") (velocity+scene l lander+scene))))
+  (velocity+scene l lander+scene))
 
 (define (render-end w)
   (define lander (world-lander w))
   (define v (lander-v lander))
-  (if (< (velocity-y v) MAX-LANDING-V)
+  (if (and (< (velocity-y v) MAX-LANDING-V)
+           (< (velocity-x v) MAX-LANDING-V))
       (overlay (text "YOU WIN!!!" 50 "green") EMPTY-SCENE)
       (overlay (text "YOU LOSE!!!" 50 "red") EMPTY-SCENE)))
 
