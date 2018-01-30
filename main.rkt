@@ -4,8 +4,7 @@
          2htdp/universe
          2htdp/image
          lens
-         struct-update)
-
+         "physics.rkt")
 
 (define WIDTH 1000)
 (define HEIGHT 800)
@@ -25,12 +24,12 @@
 (struct velocity [x y] #:transparent)
 (define-struct-lenses velocity)
 
-(struct lander [thrust?  ; Thrusters on?
-                pitch    ; Angle in radians
-                rotating ; "cw" | "ccw" | "off"
-                posn     ; Location in the world
+(struct lander [thrust?   ; Thrusters on?
+                pitch     ; Angle in radians
+                rotating  ; "cw" | "ccw" | "off"
+                posn      ; Location in the world
                 angular-v ; Angular velocity
-                v        ; Lander velocity
+                v         ; Lander velocity
                 ] #:transparent)
 (define-struct-lenses lander)
 
@@ -62,12 +61,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (next-world w)
-  (define (pos s0 v0 a dt)
-    (+ s0 (* v0 dt) (* 1/2 a (sqr dt))))
-
-  (define (vel v0 a dt)
-    (+ v0 (* a dt)))
-
   (define l (world-lander w))
 
   (define gravity 20)
@@ -101,13 +94,13 @@
 
   (define ACCELERATION-y (+ gravity thrust-y))
   (define v0_y (lens-view lander-velocity-y l))
-  (define v_y (vel v0_y ACCELERATION-y dt))
-  (define dy (* (/ (+ v0_y v_y) 2) dt))
+  (define v_y (delta-v v0_y ACCELERATION-y dt))
+  (define dy (delta-p v0_y v_y dt))
 
   (define ACCELERATION-x thrust-x)
   (define v0_x (lens-view lander-velocity-x l))
-  (define v_x (vel v0_x ACCELERATION-x dt))
-  (define dx (* (/ (+ v0_x v_x) 2) dt))
+  (define v_x (delta-v v0_x ACCELERATION-x dt))
+  (define dx (delta-p v0_x v_x dt))
 
   (define new-posn (posn (+ (posn-x p) dx)
                          (+ (posn-y p) dy)))
