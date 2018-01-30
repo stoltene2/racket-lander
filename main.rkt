@@ -76,8 +76,8 @@
                      0))
 
   (define ACCELERATION-omega
-    (cond [(string=? (lander-rotating l) "ccw") (* 4 pi)]
-          [(string=? (lander-rotating l) "cw") (- (* 4 pi))]
+    (cond [(string=? (lander-rotating l) "ccw") (* 2 pi)]
+          [(string=? (lander-rotating l) "cw") (- (* 2 pi))]
           [else 0]))
 
   (define new-angular-v (lander-angular-v l))
