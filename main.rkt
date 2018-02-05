@@ -4,40 +4,30 @@
          2htdp/universe
          2htdp/image
          lens
-         "physics.rkt")
+         "game-object.rkt"
+         "physics.rkt"
+         "lander.rkt")
 
+
+#|
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Decorations - Things the player sees but cannot interact with.
+Props - Things that can be touched and interacted with and usually visible.
+Zones - Invisible areas the player interacts with. i.e. death zones, win zones, cut scenes.
+
+TODO:
+ - Add id to each game-object
+ - Add posn and velocity to each game-object
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+|#
 (define WIDTH 1000)
 (define HEIGHT 800)
 (define TICK-RATE 1/28)
 (define MAX-LANDING-V 20)
 (define MAX-THRUST -35)
 
-(define image/ufo  (bitmap/file "assets/ufo.png"))
-(define flame/orange-red (overlay/align "center" "bottom" (triangle 15 'solid 'orange) (triangle 30 'solid 'red)))
-(define image/ufo-thrust (overlay/offset image/ufo 0 20 flame/orange-red))
-
 (define EMPTY-SCENE (empty-scene WIDTH HEIGHT))
-
-(struct posn [x y] #:transparent)
-(define-struct-lenses posn)
-
-(struct velocity [x y] #:transparent)
-(define-struct-lenses velocity)
-
-(struct lander [thrust?   ; Thrusters on?
-                pitch     ; Angle in radians
-                rotating  ; "cw" | "ccw" | "off"
-                posn      ; Location in the world
-                angular-v ; Angular velocity
-                v         ; Lander velocity
-                ] #:transparent)
-(define-struct-lenses lander)
-
-(define lander-velocity-x-lens (lens-compose velocity-x-lens lander-v-lens))
-(define lander-velocity-y-lens (lens-compose velocity-y-lens lander-v-lens))
-
-(define lander-posn-x-lens (lens-compose posn-x-lens lander-posn-lens))
-(define lander-posn-y-lens (lens-compose posn-y-lens lander-posn-lens))
 
 (struct world [time lander] #:transparent)
 (define-struct-lenses world)
@@ -49,13 +39,18 @@
                                                  world-lander-lens))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (INITIAL-WORLD) (world (current-milliseconds)
-                             (lander #f ; Not thrusting
-                                     (random -180 180) ; Initial pitch
-                                     "off" ; Not rotating
-                                     (posn (/ WIDTH 2) 10) ; Positioned near top
-                                     0 ; Angular velocity
-                                     (velocity (random -40 40)
-                                               (random 20)))))
+                               (lander lander-input ;Lander input
+                                       (λ (x) x) ;Lander physics
+                                       draw-lander
+                                       #f ; Not thrusting
+                                       (random -180 180) ; Initial pitch
+                                       "off" ; Not rotating
+                                       (posn (/ WIDTH 2) 10) ; Positioned near top
+                                       0 ; Angular velocity
+                                       (velocity (random -40 40)
+                                                 (random 20))
+
+                                       )))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -84,13 +79,8 @@
   (define new-angle (+ (lander-pitch l)
                        ACCELERATION-omega))
 
-  ;; Maybe not needed here since this should really be
-  ;; radians. Degrees are needed for rendering the angle
-  (define (deg->rad d)
-    (/ (* 2 pi d) 360))
-
-  (define thrust-x (* thrust (sin (deg->rad new-angle))))
-  (define thrust-y (* thrust (cos (deg->rad new-angle))))
+  (define thrust-x (* thrust (sin (degrees->radians new-angle))))
+  (define thrust-y (* thrust (cos (degrees->radians new-angle))))
 
   (define ACCELERATION-y (+ gravity thrust-y))
   (define v0_y (lens-view lander-velocity-y-lens l))
@@ -116,7 +106,10 @@
    current-t
 
    ;; Lander
-   (lander (lander-thrust? l)
+   (lander (game-object-input l)
+           (game-object-physics l)
+           (game-object-draw l)
+           (lander-thrust? l)
            new-angle
            (lander-rotating l)
            new-posn
@@ -124,33 +117,20 @@
            (velocity v_x v_y))))
 
 
-(define (key-down w ke)
-  (cond [(key=? ke "up") (lens-set world-lander-thrust?-lens w #t)]
-        [(key=? ke "left") (lens-set world-lander-rotating-lens w "ccw")]
-        [(key=? ke "right") (lens-set world-lander-rotating-lens w "cw")]
-        [(key=? ke "r") (INITIAL-WORLD)]
-        [else w]))
+(define (world-key-down w ke)
+  (define l (world-lander w))
+  (define lander-f (game-object-input (world-lander w)))
+  (cond [(key=? ke "r") (INITIAL-WORLD)]
+        [else (lens-set world-lander-lens w (lander-f 'key-down l ke))]))
 
-(define (key-up w ke)
-  (cond [(key=? ke "up") (lens-set world-lander-thrust?-lens w #f)]
-        [(key=? ke "left") (lens-set world-lander-rotating-lens w "off")]
-        [(key=? ke "right") (lens-set world-lander-rotating-lens w "off")]
-        [else w]))
+(define (world-key-up w ke)
+  (define l (world-lander w))
+  (define lander-f (game-object-input (world-lander w)))
+  (lens-set world-lander-lens w (lander-f 'key-up l ke)))
 
 (define (draw-world w)
-  (define (draw-lander l scene)
-    (define ship (if (lander-thrust? l)
-                     image/ufo-thrust
-                     image/ufo))
-
-    ;; Rotates with degrees
-    (place-image (rotate (lander-pitch l) ship)
-                 (lens-view lander-posn-x-lens l)
-                 (lens-view lander-posn-y-lens l)
-                 scene))
-
   (define l (world-lander w))
-  (define lander+scene (draw-lander l EMPTY-SCENE))
+  (define lander+scene ((game-object-draw l) l EMPTY-SCENE))
 
   (define (velocity+scene l scene)
     (define v_y (lens-view lander-velocity-y-lens l))
@@ -194,14 +174,7 @@
 
   (big-bang (INITIAL-WORLD)
     (on-tick next-world TICK-RATE)
-    (on-key key-down)
-    (on-release key-up)
+    (on-key world-key-down)
+    (on-release world-key-up)
     (to-draw draw-world)
     (stop-when dead? render-end)))
-
-
-;; TODO: I don't think this is working right now. I might need something inside of my info.rkt
-;; raco test main.rkt
-;; (module+ test
-;;   (require rackunit)
-;;   (check-equal? 2 3 "uh oh"))
