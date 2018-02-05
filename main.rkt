@@ -4,6 +4,7 @@
          2htdp/universe
          2htdp/image
          lens
+         "game-object.rkt"
          "physics.rkt")
 
 
@@ -27,7 +28,6 @@ Zones - Invisible areas the player interacts with. i.e. death zones, win zones, 
 
 (define EMPTY-SCENE (empty-scene WIDTH HEIGHT))
 
-(struct game-object [input physics draw])
 
 (struct posn [x y] #:transparent)
 (define-struct-lenses posn)
