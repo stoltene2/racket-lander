@@ -15,6 +15,10 @@ Decorations - Things the player sees but cannot interact with.
 Props - Things that can be touched and interacted with and usually visible.
 Zones - Invisible areas the player interacts with. i.e. death zones, win zones, cut scenes.
 
+TODO:
+ - Add id to each game-object
+ - Add posn and velocity to each game-object
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 |#
 (define WIDTH 1000)
@@ -75,13 +79,8 @@ Zones - Invisible areas the player interacts with. i.e. death zones, win zones, 
   (define new-angle (+ (lander-pitch l)
                        ACCELERATION-omega))
 
-  ;; Maybe not needed here since this should really be
-  ;; radians. Degrees are needed for rendering the angle
-  (define (deg->rad d)
-    (/ (* 2 pi d) 360))
-
-  (define thrust-x (* thrust (sin (deg->rad new-angle))))
-  (define thrust-y (* thrust (cos (deg->rad new-angle))))
+  (define thrust-x (* thrust (sin (degrees->radians new-angle))))
+  (define thrust-y (* thrust (cos (degrees->radians new-angle))))
 
   (define ACCELERATION-y (+ gravity thrust-y))
   (define v0_y (lens-view lander-velocity-y l))
