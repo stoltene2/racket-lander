@@ -30,6 +30,7 @@
                 posn      ; Location in the world
                 angular-v ; Angular velocity
                 v         ; Lander velocity
+                draw      ; Lander draw function
                 ] #:transparent)
 (define-struct-lenses lander)
 
@@ -55,7 +56,8 @@
                                      (posn (/ WIDTH 2) 10) ; Positioned near top
                                      0 ; Angular velocity
                                      (velocity (random -40 40)
-                                               (random 20)))))
+                                               (random 20))
+                                     draw-lander)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -121,7 +123,8 @@
            (lander-rotating l)
            new-posn
            new-angular-v
-           (velocity v_x v_y))))
+           (velocity v_x v_y)
+           (lander-draw l))))
 
 
 (define (key-down w ke)
@@ -137,22 +140,23 @@
         [(key=? ke "right") (lens-set world-lander-rotating-lens w "off")]
         [else w]))
 
+(define (draw-lander l scene)
+  (define p (lander-posn l))
+  (define ship (if (lander-thrust? l)
+                   image/ufo-thrust
+                   image/ufo))
+
+  ;; Rotates with degrees
+
+  (place-image (rotate (lander-pitch l) ship)
+               (posn-x p)
+               (posn-y p)
+               scene))
+
+
 (define (draw-world w)
-  (define (draw-lander l scene)
-    (define p (lander-posn l))
-    (define ship (if (lander-thrust? l)
-                     image/ufo-thrust
-                     image/ufo))
-
-    ;; Rotates with degrees
-
-    (place-image (rotate (lander-pitch l) ship)
-                 (posn-x p)
-                 (posn-y p)
-                 scene))
-
   (define l (world-lander w))
-  (define lander+scene (draw-lander l EMPTY-SCENE))
+  (define lander+scene ((lander-draw l) l EMPTY-SCENE))
 
   (define (velocity+scene l scene)
     (define v (velocity-y (lander-v l)))
@@ -197,10 +201,3 @@
     (on-release key-up)
     (to-draw draw-world)
     (stop-when dead? render-end)))
-
-
-;; TODO: I don't think this is working right now. I might need something inside of my info.rkt
-;; raco test main.rkt
-;; (module+ test
-;;   (require rackunit)
-;;   (check-equal? 2 3 "uh oh"))
