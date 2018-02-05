@@ -33,17 +33,17 @@
                 ] #:transparent)
 (define-struct-lenses lander)
 
-(define lander-velocity-x (lens-compose velocity-x-lens lander-v-lens))
-(define lander-velocity-y (lens-compose velocity-y-lens lander-v-lens))
+(define lander-velocity-x-lens (lens-compose velocity-x-lens lander-v-lens))
+(define lander-velocity-y-lens (lens-compose velocity-y-lens lander-v-lens))
 
-(define lander-posn-x (lens-compose posn-x-lens lander-posn-lens))
-(define lander-posn-y (lens-compose posn-y-lens lander-posn-lens))
+(define lander-posn-x-lens (lens-compose posn-x-lens lander-posn-lens))
+(define lander-posn-y-lens (lens-compose posn-y-lens lander-posn-lens))
 
 (struct world [time lander] #:transparent)
 (define-struct-lenses world)
 
 (define world-lander-thrust?-lens (lens-compose lander-thrust?-lens
-                                                   world-lander-lens))
+                                                world-lander-lens))
 
 (define world-lander-rotating-lens (lens-compose lander-rotating-lens
                                                  world-lander-lens))
@@ -93,12 +93,12 @@
   (define thrust-y (* thrust (cos (deg->rad new-angle))))
 
   (define ACCELERATION-y (+ gravity thrust-y))
-  (define v0_y (lens-view lander-velocity-y l))
+  (define v0_y (lens-view lander-velocity-y-lens l))
   (define v_y (delta-v v0_y ACCELERATION-y dt))
   (define dy (delta-p v0_y v_y dt))
 
   (define ACCELERATION-x thrust-x)
-  (define v0_x (lens-view lander-velocity-x l))
+  (define v0_x (lens-view lander-velocity-x-lens l))
   (define v_x (delta-v v0_x ACCELERATION-x dt))
   (define dx (delta-p v0_x v_x dt))
 
@@ -139,32 +139,28 @@
 
 (define (draw-world w)
   (define (draw-lander l scene)
-    (define p (lander-posn l))
     (define ship (if (lander-thrust? l)
                      image/ufo-thrust
                      image/ufo))
 
     ;; Rotates with degrees
-
     (place-image (rotate (lander-pitch l) ship)
-                 (posn-x p)
-                 (posn-y p)
+                 (lens-view lander-posn-x-lens l)
+                 (lens-view lander-posn-y-lens l)
                  scene))
 
   (define l (world-lander w))
   (define lander+scene (draw-lander l EMPTY-SCENE))
 
   (define (velocity+scene l scene)
-    (define v_y (velocity-y (lander-v l)))
-    (define v_x (velocity-x (lander-v l)))
+    (define v_y (lens-view lander-velocity-y-lens l))
+    (define v_x (lens-view lander-velocity-x-lens l))
 
     (define y-vel-string
-      (format "Y vel: ~a"
-              (real->decimal-string v_y 2)))
+      (format "Y vel: ~a" (real->decimal-string v_y 2)))
 
     (define x-vel-string
-      (format "X vel: ~a"
-              (real->decimal-string v_x 2)))
+      (format "X vel: ~a" (real->decimal-string v_x 2)))
 
     (define angle-string
       (format "pitch: ~a" (real->decimal-string (lander-pitch l))))

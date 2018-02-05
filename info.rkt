@@ -6,7 +6,6 @@
 
 (define deps
   '("base"
-    "struct-update-lib"
     "lens"
     "point-free"))
 
