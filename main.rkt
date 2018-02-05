@@ -6,6 +6,15 @@
          lens
          "physics.rkt")
 
+
+#|
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Decorations - Things the player sees but cannot interact with.
+Props - Things that can be touched and interacted with and usually visible.
+Zones - Invisible areas the player interacts with. i.e. death zones, win zones, cut scenes.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+|#
 (define WIDTH 1000)
 (define HEIGHT 800)
 (define TICK-RATE 1/28)
@@ -18,19 +27,21 @@
 
 (define EMPTY-SCENE (empty-scene WIDTH HEIGHT))
 
+(struct game-object [input physics draw])
+
 (struct posn [x y] #:transparent)
 (define-struct-lenses posn)
 
 (struct velocity [x y] #:transparent)
 (define-struct-lenses velocity)
 
-(struct lander [thrust?   ; Thrusters on?
+(struct lander game-object [
+                thrust?   ; Thrusters on?
                 pitch     ; Angle in radians
                 rotating  ; "cw" | "ccw" | "off"
                 posn      ; Location in the world
                 angular-v ; Angular velocity
                 v         ; Lander velocity
-                draw      ; Lander draw function
                 ] #:transparent)
 (define-struct-lenses lander)
 
@@ -50,14 +61,18 @@
                                                  world-lander-lens))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (INITIAL-WORLD) (world (current-milliseconds)
-                             (lander #f ; Not thrusting
-                                     (random -180 180) ; Initial pitch
-                                     "off" ; Not rotating
-                                     (posn (/ WIDTH 2) 10) ; Positioned near top
-                                     0 ; Angular velocity
-                                     (velocity (random -40 40)
-                                               (random 20))
-                                     draw-lander)))
+                               (lander (λ (x) x) ;Lander input
+                                       (λ (x) x) ;Lander physics
+                                       draw-lander
+                                       #f ; Not thrusting
+                                       (random -180 180) ; Initial pitch
+                                       "off" ; Not rotating
+                                       (posn (/ WIDTH 2) 10) ; Positioned near top
+                                       0 ; Angular velocity
+                                       (velocity (random -40 40)
+                                                 (random 20))
+
+                                       )))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -118,13 +133,15 @@
    current-t
 
    ;; Lander
-   (lander (lander-thrust? l)
+   (lander (game-object-input l)
+           (game-object-physics l)
+           (game-object-draw l)
+           (lander-thrust? l)
            new-angle
            (lander-rotating l)
            new-posn
            new-angular-v
-           (velocity v_x v_y)
-           (lander-draw l))))
+           (velocity v_x v_y))))
 
 
 (define (key-down w ke)
@@ -156,7 +173,7 @@
 
 (define (draw-world w)
   (define l (world-lander w))
-  (define lander+scene ((lander-draw l) l EMPTY-SCENE))
+  (define lander+scene ((game-object-draw l) l EMPTY-SCENE))
 
   (define (velocity+scene l scene)
     (define v (velocity-y (lander-v l)))
