@@ -1,6 +1,7 @@
 (module lander racket
   (provide (all-defined-out))
-  (require 2htdp/image
+  (require 2htdp/universe
+           2htdp/image
            lens
            "game-object.rkt")
 
@@ -18,6 +19,29 @@
 
   (define lander-posn-x (lens-compose posn-x-lens lander-posn-lens))
   (define lander-posn-y (lens-compose posn-y-lens lander-posn-lens))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Input
+  ;; type = 'key-up, 'key-down
+  (define (lander-input type lander ke)
+    (cond [(symbol=? type 'key-up) (lander-key-up lander ke)]
+          [(symbol=? type 'key-down) (lander-key-down lander ke)]
+          [else lander]))
+
+  (define (lander-key-down l ke)
+    (cond [(key=? ke "up") (lens-set lander-thrust?-lens l #t)]
+          [(key=? ke "left") (lens-set lander-rotating-lens l "ccw")]
+          [(key=? ke "right") (lens-set lander-rotating-lens l "cw")]
+          [else l]))
+
+  (define (lander-key-up l ke)
+    (cond [(key=? ke "up") (lens-set lander-thrust?-lens l #f)]
+          [(key=? ke "left") (lens-set lander-rotating-lens l "off")]
+          [(key=? ke "right") (lens-set lander-rotating-lens l "off")]
+          [else l]))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Physics
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Drawing
@@ -38,5 +62,6 @@
                  (posn-x p)
                  (posn-y p)
                  scene))
+
 
   )

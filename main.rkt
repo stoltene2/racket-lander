@@ -35,7 +35,7 @@ Zones - Invisible areas the player interacts with. i.e. death zones, win zones, 
                                                  world-lander-lens))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (INITIAL-WORLD) (world (current-milliseconds)
-                               (lander (λ (x) x) ;Lander input
+                               (lander lander-input ;Lander input
                                        (λ (x) x) ;Lander physics
                                        draw-lander
                                        #f ; Not thrusting
@@ -118,19 +118,16 @@ Zones - Invisible areas the player interacts with. i.e. death zones, win zones, 
            (velocity v_x v_y))))
 
 
-(define (key-down w ke)
-  (cond [(key=? ke "up") (lens-set world-lander-thrust?-lens w #t)]
-        [(key=? ke "left") (lens-set world-lander-rotating-lens w "ccw")]
-        [(key=? ke "right") (lens-set world-lander-rotating-lens w "cw")]
-        [(key=? ke "r") (INITIAL-WORLD)]
-        [else w]))
+(define (world-key-down w ke)
+  (define l (world-lander w))
+  (define lander-f (game-object-input (world-lander w)))
+  (cond [(key=? ke "r") (INITIAL-WORLD)]
+        [else (lens-set world-lander-lens w (lander-f 'key-down l ke))]))
 
-(define (key-up w ke)
-  (cond [(key=? ke "up") (lens-set world-lander-thrust?-lens w #f)]
-        [(key=? ke "left") (lens-set world-lander-rotating-lens w "off")]
-        [(key=? ke "right") (lens-set world-lander-rotating-lens w "off")]
-        [else w]))
-
+(define (world-key-up w ke)
+  (define l (world-lander w))
+  (define lander-f (game-object-input (world-lander w)))
+  (lens-set world-lander-lens w (lander-f 'key-up l ke)))
 
 (define (draw-world w)
   (define l (world-lander w))
@@ -175,7 +172,7 @@ Zones - Invisible areas the player interacts with. i.e. death zones, win zones, 
 
   (big-bang (INITIAL-WORLD)
     (on-tick next-world TICK-RATE)
-    (on-key key-down)
-    (on-release key-up)
+    (on-key world-key-down)
+    (on-release world-key-up)
     (to-draw draw-world)
     (stop-when dead? render-end)))
