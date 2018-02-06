@@ -4,6 +4,7 @@
          2htdp/universe
          2htdp/image
          lens
+         "world.rkt"
          "game-object.rkt"
          "physics.rkt"
          "lander.rkt")
@@ -25,12 +26,11 @@ TODO:
 (define HEIGHT 800)
 (define TICK-RATE 1/28)
 (define MAX-LANDING-V 20)
-(define MAX-THRUST -35)
+
 
 (define EMPTY-SCENE (empty-scene WIDTH HEIGHT))
 
-(struct world [time lander] #:transparent)
-(define-struct-lenses world)
+(define last-time (current-milliseconds))
 
 (define world-lander-thrust?-lens (lens-compose lander-thrust?-lens
                                                 world-lander-lens))
@@ -38,15 +38,15 @@ TODO:
 (define world-lander-rotating-lens (lens-compose lander-rotating-lens
                                                  world-lander-lens))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (INITIAL-WORLD) (world (current-milliseconds)
-                               (lander lander-input ;Lander input
-                                       (λ (x) x) ;Lander physics
-                                       draw-lander
-                                       #f ; Not thrusting
-                                       (random -180 180) ; Initial pitch
-                                       "off" ; Not rotating
+(define (INITIAL-WORLD) (world TICK-RATE ; 10 ms since last frame
+                               (lander lander-input          ; Lander input
+                                       lander-physics        ; Lander physics
+                                       draw-lander           ; Draw lander
+                                       #f                    ; Not thrusting
+                                       (random -180 180)     ; Initial pitch
+                                       "off"                 ; Not rotating
                                        (posn (/ WIDTH 2) 10) ; Positioned near top
-                                       0 ; Angular velocity
+                                       0                     ; Angular velocity
                                        (velocity (random -40 40)
                                                  (random 20))
 
@@ -56,65 +56,14 @@ TODO:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (next-world w)
-  (define l (world-lander w))
+  (define current-time (current-milliseconds))
+  (define new-world (lens-set world-dt-lens w (/ (- current-time last-time) 1000.0)))
+  (set! last-time current-time)
 
-  (define gravity 20)
+  (define physics-f (game-object-physics (world-lander new-world)))
 
-  (define last-t (world-time w))
-  (define current-t (current-milliseconds))
-
-  (define p (lander-posn l))
-  (define dt (/ (- current-t last-t) 1000.0))
-
-  (define thrust (if (lander-thrust? l)
-                     MAX-THRUST
-                     0))
-
-  (define ACCELERATION-omega
-    (cond [(string=? (lander-rotating l) "ccw") (* 2 pi)]
-          [(string=? (lander-rotating l) "cw") (- (* 2 pi))]
-          [else 0]))
-
-  (define new-angular-v (lander-angular-v l))
-  (define new-angle (+ (lander-pitch l)
-                       ACCELERATION-omega))
-
-  (define thrust-x (* thrust (sin (degrees->radians new-angle))))
-  (define thrust-y (* thrust (cos (degrees->radians new-angle))))
-
-  (define ACCELERATION-y (+ gravity thrust-y))
-  (define v0_y (lens-view lander-velocity-y-lens l))
-  (define v_y (delta-v v0_y ACCELERATION-y dt))
-  (define dy (delta-p v0_y v_y dt))
-
-  (define ACCELERATION-x thrust-x)
-  (define v0_x (lens-view lander-velocity-x-lens l))
-  (define v_x (delta-v v0_x ACCELERATION-x dt))
-  (define dx (delta-p v0_x v_x dt))
-
-  (define new-posn (posn (+ (posn-x p) dx)
-                         (+ (posn-y p) dy)))
-
-
-  ;; Ideas
-  ;; Use thrush+ so I don't need to keep updating things
-  ;; (thrush+ w (λ (w) (lens-set world-time-lens w current-t))
-  ;;            (λ (w) (lens-set world-lander-posn-lens w (velocity v_x v_y))))
-
-  (world
-   ;; Time
-   current-t
-
-   ;; Lander
-   (lander (game-object-input l)
-           (game-object-physics l)
-           (game-object-draw l)
-           (lander-thrust? l)
-           new-angle
-           (lander-rotating l)
-           new-posn
-           new-angular-v
-           (velocity v_x v_y))))
+  (lens-set world-lander-lens new-world
+            (physics-f (world-lander new-world) new-world)))
 
 
 (define (world-key-down w ke)
