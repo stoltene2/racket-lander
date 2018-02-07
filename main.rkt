@@ -9,7 +9,6 @@
          "physics.rkt"
          "lander.rkt")
 
-
 #|
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 Decorations - Things the player sees but cannot interact with.
@@ -33,24 +32,27 @@ TODO:
 (define last-time (current-milliseconds))
 
 (define world-lander-thrust?-lens (lens-compose lander-thrust?-lens
-                                                world-lander-lens))
+                                                first-lens
+                                                world-game-objects-lens))
 
 (define world-lander-rotating-lens (lens-compose lander-rotating-lens
-                                                 world-lander-lens))
+                                                 first-lens
+                                                 world-game-objects-lens))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (INITIAL-WORLD) (world TICK-RATE ; 10 ms since last frame
-                               (lander lander-input          ; Lander input
-                                       lander-physics        ; Lander physics
-                                       draw-lander           ; Draw lander
-                                       #f                    ; Not thrusting
-                                       (random -180 180)     ; Initial pitch
-                                       "off"                 ; Not rotating
-                                       (posn (/ WIDTH 2) 10) ; Positioned near top
-                                       0                     ; Angular velocity
-                                       (velocity (random -40 40)
-                                                 (random 20))
 
-                                       )))
+(define (new-lander) (lander lander-input          ; Lander input
+                             lander-physics        ; Lander physics
+                             draw-lander           ; Draw lander
+                             #f                    ; Not thrusting
+                             (random -180 180)     ; Initial pitch
+                             "off"                 ; Not rotating
+                             (posn (/ WIDTH 2) 10) ; Positioned near top
+                             0                     ; Angular velocity
+                             (velocity (random -40 40)
+                                       (random 20))))
+
+(define (INITIAL-WORLD) (world TICK-RATE ; 10 ms since last frame
+                               (list (new-lander))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -60,26 +62,35 @@ TODO:
   (define new-world (lens-set world-dt-lens w (/ (- current-time last-time) 1000.0)))
   (set! last-time current-time)
 
-  (define physics-f (game-object-physics (world-lander new-world)))
 
-  (lens-set world-lander-lens new-world
-            (physics-f (world-lander new-world) new-world)))
+  (lens-transform world-game-objects-lens new-world
+                  (λ (game-objs)
+                    (map (λ (go)
+                           (define f (game-object-physics go))
+                           (f go w))
+                         game-objs))))
 
 
 (define (world-key-down w ke)
-  (define l (world-lander w))
-  (define lander-f (game-object-input (world-lander w)))
   (cond [(key=? ke "r") (INITIAL-WORLD)]
-        [else (lens-set world-lander-lens w (lander-f 'key-down l ke))]))
+        [else (lens-transform world-game-objects-lens w
+                              (λ (game-objs)
+                                (map (λ (go)
+                                       ((game-object-input go) 'key-down go ke))
+                                     game-objs)))]))
 
 (define (world-key-up w ke)
-  (define l (world-lander w))
-  (define lander-f (game-object-input (world-lander w)))
-  (lens-set world-lander-lens w (lander-f 'key-up l ke)))
+  (lens-transform world-game-objects-lens w
+                              (λ (game-objs)
+                                (map (λ (go)
+                                       ((game-object-input go) 'key-up go ke))
+                                     game-objs))))
 
 (define (draw-world w)
-  (define l (world-lander w))
-  (define lander+scene ((game-object-draw l) l EMPTY-SCENE))
+  (define next-scene (foldl (λ (go scene)
+                              ((game-object-draw go) go scene))
+                            EMPTY-SCENE
+                            (world-game-objects w)))
 
   (define (velocity+scene l scene)
     (define v_y (lens-view lander-velocity-y-lens l))
@@ -104,18 +115,19 @@ TODO:
                           (text x-vel-string 12 color)
                           (text angle-string 12 "blue")) scene))
 
-  (velocity+scene l lander+scene))
+  (velocity+scene (first (world-game-objects w)) next-scene))
 
 (define (render-end w)
-  (define lander (world-lander w))
-  (define v (lander-v lander))
+  (define l (first (world-game-objects w)))
+  (define v (lander-v l))
   (if (and (< (velocity-y v) MAX-LANDING-V)
            (< (velocity-x v) MAX-LANDING-V))
       (overlay (text "YOU WIN!!!" 50 "green") EMPTY-SCENE)
       (overlay (text "YOU LOSE!!!" 50 "red") EMPTY-SCENE)))
 
 (define (dead? w)
-  (define p (lander-posn (world-lander w)))
+  (define l (first (world-game-objects w)))
+  (define p (lander-posn l))
   (> (posn-y p) HEIGHT))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

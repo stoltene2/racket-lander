@@ -3,9 +3,9 @@
 
   (require lens)
 
-  (struct game-object [input
-                       physics
-                       draw])
+  (struct game-object [input       ; Input   ; 'type game-object ke -> game-object
+                       physics     ; Physics ; game-object world -> game-object
+                       draw])      ; Draw    ; game-object scene -> scene
 
   (struct posn [x y] #:transparent)
   (define-struct-lenses posn)

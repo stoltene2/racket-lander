@@ -25,10 +25,10 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Input
   ;; type = 'key-up, 'key-down
-  (define (lander-input type lander ke)
-    (cond [(symbol=? type 'key-up) (lander-key-up lander ke)]
-          [(symbol=? type 'key-down) (lander-key-down lander ke)]
-          [else lander]))
+  (define (lander-input type l ke)
+    (cond [(symbol=? type 'key-up) (lander-key-up l ke)]
+          [(symbol=? type 'key-down) (lander-key-down l ke)]
+          [else l]))
 
   (define (lander-key-down l ke)
     (cond [(key=? ke "up") (lens-set lander-thrust?-lens l #t)]
