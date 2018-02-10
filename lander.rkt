@@ -7,6 +7,8 @@
            "physics.rkt"
            "game-object.rkt")
 
+  (define MAX-THRUST -250)
+
   (struct lander game-object [ thrust?   ; Thrusters on?
                                pitch     ; Angle in radians
                                rotating  ; "cw" | "ccw" | "off"
