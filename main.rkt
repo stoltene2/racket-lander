@@ -9,6 +9,7 @@
          "physics.rkt"
          "lander.rkt")
 
+;; Use struct/lens
 #|
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 Decorations - Things the player sees but cannot interact with.
@@ -18,9 +19,19 @@ Zones - Invisible areas the player interacts with. i.e. death zones, win zones, 
 TODO:
  - Add id to each game-object
  - Add posn and velocity to each game-object
-
+ - Add an array of game objects
+   - The HUD needs us to register the lander id so we can look the
+     lander up from the game objects array.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 |#
+
+(struct ground game-object [posn] #:transparent)
+
+(define world-ground (ground (λ (x) x) ; Input   ; 'type game-object ke -> game-object
+                             (λ (x) x) ; Physics ; game-object world -> game-object
+                             (λ (x scene) scene) ; Draw    ; game-object scene -> scene
+                             (posn 0 40)))
+
 (define WIDTH 1000)
 (define HEIGHT 800)
 (define TICK-RATE 1/28)
@@ -31,6 +42,7 @@ TODO:
 
 (define last-time (current-milliseconds))
 
+;; TODO These will go away when we have an ID
 (define world-lander-thrust?-lens (lens-compose lander-thrust?-lens
                                                 first-lens
                                                 world-game-objects-lens))
@@ -62,7 +74,20 @@ TODO:
   (define new-world (lens-set world-dt-lens w (/ (- current-time last-time) 1000.0)))
   (set! last-time current-time)
 
+  ;; Note: I will need this when physics returns world instead of game-object
+  ;; (define (apply-physics go w)
+  ;;   (define physics-f (game-object-physics go))
+  ;;   (physics-f go w))
 
+  ;; (define new-new-world
+  ;;   (foldl apply-physics w (world-game-objects w)))
+
+  #|
+
+  Maybe I should search all game objects for collisions, process them
+  and then call physics on each one.
+
+|#
   (lens-transform world-game-objects-lens new-world
                   (λ (game-objs)
                     (map (λ (go)
@@ -87,6 +112,7 @@ TODO:
                                      game-objs))))
 
 (define (draw-world w)
+  ;; Change to get lander by ID from the world
   (define next-scene (foldl (λ (go scene)
                               ((game-object-draw go) go scene))
                             EMPTY-SCENE
@@ -115,9 +141,11 @@ TODO:
                           (text x-vel-string 12 color)
                           (text angle-string 12 "blue")) scene))
 
+  ;;TODO: Fix this to look lander up by id
   (velocity+scene (first (world-game-objects w)) next-scene))
 
 (define (render-end w)
+  ;;TODO: Update to get lander by ID
   (define l (first (world-game-objects w)))
   (define v (lander-v l))
   (if (and (< (velocity-y v) MAX-LANDING-V)
